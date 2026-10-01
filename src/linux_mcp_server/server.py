@@ -204,6 +204,12 @@ def run_script_app_html() -> ResourceResult:
 from linux_mcp_server.tools import *  # noqa: E402, F403
 
 
+try:
+    import linux_mcp_server.custom
+except ImportError:
+    pass
+
+
 @dataclass
 class ComponentFilter:
     """

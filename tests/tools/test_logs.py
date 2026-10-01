@@ -411,9 +411,7 @@ class TestReadLogFile:
         with pytest.raises(ToolError, match="not allowed"):
             await mcp_client.call_tool("read_log_file", {"log_path": restricted_path, "host": "remote.server.com"})
 
-    async def test_read_log_file_remote_path_traversal_is_rejected(
-        self, mcp_client, mock_allowed_log_paths
-    ):
+    async def test_read_log_file_remote_path_traversal_is_rejected(self, mcp_client, mock_allowed_log_paths):
         """Traversal attempts must be rejected for remote Linux paths."""
         mock_allowed_log_paths("/var/log/messages")
 
