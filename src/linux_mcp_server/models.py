@@ -1,7 +1,7 @@
 import typing as t
 
 from datetime import datetime
-
+from pathlib import PurePosixPath
 from pydantic import AwareDatetime
 from pydantic import BaseModel
 from pydantic import Field
@@ -193,9 +193,9 @@ class StorageNodes(BaseModel):
 class LogEntries(BaseModel):
     entries: list[str]
     unit: str = ""
-    path: str | None = None
+    path: PurePosixPath | None = None
     lines_count: int = Field(default_factory=field_length("entries"))
 
     @field_serializer("unit", "path")
-    def serialize_empty_as_null(self, value: str | None) -> str | None:
+    def serialize_empty_as_null(self, value: str | PurePosixPath | None) -> str | None:
         return str(value) if value else None

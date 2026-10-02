@@ -4,6 +4,7 @@ import os
 import typing as t
 
 from pathlib import Path
+from pathlib import PurePosixPath
 
 from fastmcp.exceptions import ToolError
 from mcp.types import ToolAnnotations
@@ -53,7 +54,7 @@ def attr_sorter(order_by: OrderBy):
 
 
 async def _list_resources(
-    path: str,
+    path: PurePosixPath,
     command: CommandSpec,
     order_by: OrderBy,
     sort: SortBy,
@@ -111,7 +112,7 @@ async def list_block_devices(
 @log_tool_call
 async def list_directories(
     path: t.Annotated[
-        str,
+        PurePosixPath,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the directory to analyze",
@@ -159,7 +160,7 @@ async def list_directories(
 @log_tool_call
 async def list_files(
     path: t.Annotated[
-        str,
+        PurePosixPath,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the directory to analyze",
@@ -207,7 +208,7 @@ async def list_files(
 @log_tool_call
 async def read_file(
     path: t.Annotated[
-        str,
+        PurePosixPath,
         BeforeValidator(validate_path),
         Field(
             description="Absolute path to the file to read",
@@ -230,7 +231,9 @@ async def read_file(
         local_path = Path(path)
         if not os.path.isfile(local_path):
             raise ToolError(f"Path is not a file: {path}")
-        file_size = local_path.stat().st_size
+        # Local execution is the one case where the target path names a file this
+        # process can stat, so it becomes a Path of the server's own flavour here.
+        file_size = Path(path).stat().st_size
         if file_size > limit:
             raise ToolError(f"File is too large ({format_bytes(file_size)} > {limit_text}): {path}")
     else:
