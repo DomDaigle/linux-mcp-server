@@ -205,7 +205,7 @@ async def get_journal_logs(
 @log_tool_call
 async def read_log_file(
     log_path: t.Annotated[
-        PurePosixPath,
+        str,
         BeforeValidator(validate_path),
         Field(
             description="Absolute POSIX path to the log file (must be in allowed list)",
@@ -260,9 +260,7 @@ async def read_log_file(
 
     allowed_paths = [PurePosixPath(p.strip()) for p in allowed_paths_env.split(",") if p.strip()]
 
-    if host == LOCALHOST:
-        # For local execution, resolve and check against allowlist
-        requested_path = Path(log_path).resolve()
+    log_path_str = _get_log_path_for_host(log_path, allowed_paths, host)
 
     subcommand = "head" if use_head else "tail"
     cmd = get_command("read_log_file", subcommand)

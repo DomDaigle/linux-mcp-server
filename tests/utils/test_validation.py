@@ -1,7 +1,5 @@
 """Tests for input validation utilities."""
 
-from pathlib import PurePosixPath
-
 import pytest
 
 from linux_mcp_server.utils.validation import is_empty_output
@@ -80,26 +78,49 @@ class TestValidatePath:
     @pytest.mark.parametrize(
         "path,expected",
         [
-            ("/var/log/messages", PurePosixPath("/var/log/messages")),
-            ("/home/user/file.txt", PurePosixPath("/home/user/file.txt")),
-            ("/", PurePosixPath("/")),
-            ("/tmp", PurePosixPath("/tmp")),
-            ("/path/with spaces/file.txt", PurePosixPath("/path/with spaces/file.txt")),
-            # A backslash is an ordinary character in a Linux filename, not a separator
-            ("/var/log/odd\\name.log", PurePosixPath("/var/log/odd\\name.log")),
+            ("/var/log/messages", "/var/log/messages"),
+            ("/home/user/file.txt", "/home/user/file.txt"),
+            ("/", "/"),
+            ("/tmp", "/tmp"),
+            ("/path/with spaces/file.txt", "/path/with spaces/file.txt"),
         ],
     )
     def test_valid_absolute_paths(self, path, expected):
         """Valid absolute paths are accepted and returned in POSIX format."""
-        validated = validate_path(path)
+        assert validate_path(path) == expected
 
-        assert validated == expected
-        # The target host sees exactly what the caller asked for
-        assert str(validated) == path
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/var/log/messages",
+            "/var/log/secure",
+            "/var/log/audit/audit.log",
+        ],
+    )
+    def test_valid_remote_linux_paths_are_posix(self, path):
+        """Remote Linux paths remain valid even when the MCP server runs on Windows."""
+        assert validate_path(path) == path
+        assert validate_remote_path(path) == path
 
-    def test_single_component_names(self):
-        """Path components are split on '/' alone, never on the server OS's separator."""
-        assert validate_path("/var/log/odd\\name.log").name == "odd\\name.log"
+    def test_windows_absolute_path_is_preserved_for_local_use(self):
+        path = r"C:\var\log\messages"
+        assert validate_path(path) == path
+        with pytest.raises(PathValidationError, match="absolute POSIX"):
+            validate_remote_path(path)
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "../../etc/shadow",
+            "/var/log/../etc/shadow",
+            "relative/path",
+            "",
+        ],
+    )
+    def test_rejects_invalid_remote_linux_paths(self, path):
+        """Invalid remote Linux paths are rejected before execution."""
+        with pytest.raises(PathValidationError):
+            validate_remote_path(path)
 
     @pytest.mark.parametrize(
         "path",
@@ -142,10 +163,6 @@ class TestValidatePath:
             "file.txt",
             "./relative",
             "../parent",
-            # Absolute on Windows, meaningless on the Linux target
-            "C:/logs/app.log",
-            "C:\\logs\\app.log",
-            "\\\\server\\share\\app.log",
         ],
     )
     def test_rejects_non_absolute_paths(self, path):

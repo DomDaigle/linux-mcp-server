@@ -193,9 +193,9 @@ class StorageNodes(BaseModel):
 class LogEntries(BaseModel):
     entries: list[str]
     unit: str = ""
-    path: PurePosixPath | None = None
+    path: str | None = None
     lines_count: int = Field(default_factory=field_length("entries"))
 
     @field_serializer("unit", "path")
-    def serialize_empty_as_null(self, value: str | PurePosixPath | None) -> str | None:
+    def serialize_empty_as_null(self, value: str | None) -> str | None:
         return str(value) if value else None

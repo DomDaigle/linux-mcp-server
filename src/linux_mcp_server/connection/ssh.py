@@ -15,7 +15,6 @@ import time
 
 from collections.abc import Sequence
 from pathlib import Path
-from pathlib import PurePosixPath
 from typing import Optional
 
 import asyncssh
@@ -232,9 +231,7 @@ class SSHConnectionManager:
         """
         conn = await self.get_connection(host)
         bin = command[0]
-        # The binary lives on the target host, so POSIX rules decide whether it is
-        # already an absolute path, whatever OS this server runs on.
-        if not PurePosixPath(bin).is_absolute():
+        if not Path(bin).is_absolute():
             bin = await get_remote_bin_path(bin, host, conn)
 
         full_command = [bin, *command[1:]]

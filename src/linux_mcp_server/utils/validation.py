@@ -12,37 +12,15 @@ class PathValidationError(ValueError):
     pass
 
 
-def validate_path(path: str) -> PurePosixPath:
-    """Validate a filesystem path for security and correctness.
-
-    The path names a file on the target host, which is always Linux, so it is judged
-    by POSIX rules whatever the server itself runs on. Deciding with ``pathlib.Path``
-    would make the answer depend on the server's OS: a Windows-hosted server would
-    reject "/var/log/secure" as relative and accept "C:/logs/app.log" as absolute.
+def validate_path(path: str) -> str:
+    """Validate an absolute local or remote path without coercing its syntax.
 
     Performs security checks to prevent command injection and path traversal attacks:
     - Rejects paths containing newlines, carriage returns, or null bytes
     - Rejects paths starting with '-' (prevents flag injection)
-    - Requires absolute POSIX paths
-
-    Args:
-        path: The filesystem path to validate.
-
-    Returns:
-        The validated path in POSIX format.
-
-    Raises:
-        PathValidationError: If the path fails any validation check.
-
-    Examples:
-        >>> validate_path("/var/log/messages")
-        PurePosixPath('/var/log/messages')
-
-        >>> validate_path("relative/path")
-        PathValidationError: Path must be absolute: relative/path
-
-        >>> validate_path("/path\\nwith\\nnewlines")
-        PathValidationError: Path contains invalid characters: /path\\nwith\\nnewlines
+        - Requires an absolute POSIX or Windows path; remote paths receive stricter
+            POSIX validation once the target host is known
+        - Rejects path traversal via '..' components
     """
     if not path:
         raise PathValidationError("Path cannot be empty")
@@ -55,8 +33,7 @@ def validate_path(path: str) -> PurePosixPath:
     if path.startswith("-"):
         raise PathValidationError(f"Path cannot start with '-': {path}")
 
-    # Require absolute paths, by POSIX rules rather than the server OS's rules
-    if not path.startswith("/"):
+    if not PurePosixPath(path).is_absolute() and not PureWindowsPath(path).is_absolute():
         raise PathValidationError(f"Path must be absolute: {path}")
 
     # Check both separators so traversal is rejected before local/remote routing.
@@ -65,6 +42,17 @@ def validate_path(path: str) -> PurePosixPath:
 
 
     return PurePosixPath(path)
+
+
+
+def validate_remote_path(path: str) -> str:
+    """Validate and normalize a path that will be passed to a remote Linux host."""
+    validate_path(path)
+    remote_path = PurePosixPath(path)
+    if not remote_path.is_absolute() or "\\" in path:
+        raise PathValidationError(f"Path must be an absolute POSIX path: {path}")
+    return str(remote_path)
+
 
 
 def is_empty_output(stdout: str | None) -> bool:
